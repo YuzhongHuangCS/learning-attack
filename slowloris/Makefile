@@ -1,9 +1,9 @@
 CC			= g++
-CFLAGS		= -std=c++11 -Wall -march=native -O3
-LINKFLAGS	=
-SRCS		= flood.cpp
+CFLAGS		= -std=c++11 -pthread -Wall -march=native
+LINKFLAGS	= -lboost_system
+SRCS		= learn.cpp
 OBJS		= $(SRCS:.cpp=.o)
-PROG		= flood
+PROG		= learn
 
 all: $(SRCS) $(PROG)
 
