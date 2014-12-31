@@ -1,9 +1,9 @@
 CC			= g++
-CFLAGS		= -Wall -march=native -fopenmp -O3
+CFLAGS		= -Wall -march=native -O3
 LINKFLAGS	=
-SRCS		= my.cpp
+SRCS		= flood.cpp
 OBJS		= $(SRCS:.cpp=.o)
-PROG		= my.out
+PROG		= flood
 
 all: $(SRCS) $(PROG)
 
