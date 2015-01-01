@@ -8,8 +8,8 @@ using namespace std;
 using namespace boost;
 using namespace asio;
 
-int concurrency = 240;
-int maxTrunk = 60;
+int concurrency = 100;
+int maxTrunk = 10;
 int interval = 5;
 string host = "localhost";
 string path = "/";
@@ -64,7 +64,7 @@ public:
 		stream->flush();
 		stream->close();
 
-		cout << format("Restart Request: %1%") % id << endl;
+		cout << format("Close Request: %1%") % id << endl;
 
 		stream->connect(host, "http");
 		count = 0;
@@ -73,15 +73,21 @@ public:
 	}
 };
 
+void createRequest(io_service* io, deadline_timer* timer, int id) {
+	Request* req = new Request(*io, id);
+	req->open();
+
+	if(id < concurrency) {
+		timer->expires_from_now(posix_time::millisec(100));
+		timer->async_wait(bind(createRequest, io, timer, ++id));
+	}
+}
+
 int main(int argc, char *argv[]) {
 	io_service io;
-
-	for (int i = 0; i < concurrency; i++) {
-		Request *req = new Request(io, i);
-		req->open();
-	}
+	deadline_timer timer(io, posix_time::millisec(100));
+	timer.async_wait(bind(createRequest, &io, &timer, 0));
 
 	io.run();
-
 	return 0;
 }
