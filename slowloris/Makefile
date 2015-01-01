@@ -1,6 +1,6 @@
 CC			= g++
 CFLAGS		= -std=c++11 -pthread -Wall -march=native
-LINKFLAGS	= -lboost_system
+LINKFLAGS	= -lboost_system -lboost_program_options
 SRCS		= slowloris.cpp
 OBJS		= $(SRCS:.cpp=.o)
 PROG		= slowloris
