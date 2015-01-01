@@ -119,6 +119,8 @@ int main(int argc, char *argv[]) {
 	deadline_timer timer(io, posix_time::millisec(100));
 	timer.async_wait(bind(createRequest, &io, &timer, 0));
 
+	cout << format("Attacking %1%%2% with concurrency=%3%, trunks=%4%, interval=%5%") % host % path % concurrency % trunks % interval << endl << endl;
+
 	io.run();
 
 	return 0;
