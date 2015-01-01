@@ -1,9 +1,9 @@
 CC			= g++
 CFLAGS		= -std=c++11 -pthread -Wall -march=native
 LINKFLAGS	= -lboost_system
-SRCS		= learn.cpp
+SRCS		= slowloris.cpp
 OBJS		= $(SRCS:.cpp=.o)
-PROG		= learn
+PROG		= slowloris
 
 all: $(SRCS) $(PROG)
 
