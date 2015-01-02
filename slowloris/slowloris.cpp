@@ -1,5 +1,4 @@
 #include <iostream>
-#include <list>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/format.hpp>
@@ -15,11 +14,6 @@ string host, path;
 
 class Request {
 public:
-	deadline_timer* timer;
-	ip::tcp::iostream* stream;
-	int id;
-	int count;
-
 	Request(io_service& io, int id) : id(id), count(0) {
 		timer = new deadline_timer(io, posix_time::seconds(interval));
 		stream = new ip::tcp::iostream(host, "http");
@@ -72,15 +66,22 @@ public:
 		timer->expires_from_now(posix_time::seconds(interval));
 		timer->async_wait(bind(&Request::open, this));
 	}
+
+private:
+	deadline_timer* timer;
+	ip::tcp::iostream* stream;
+	int id;
+	int count;
+
 };
 
-void createRequest(io_service* io, deadline_timer* timer, int id) {
+void requestFactory(io_service* io, deadline_timer* timer, int id) {
 	Request* req = new Request(*io, id);
 	req->open();
 
 	if(id < concurrency) {
 		timer->expires_from_now(posix_time::millisec(100));
-		timer->async_wait(bind(createRequest, io, timer, ++id));
+		timer->async_wait(bind(requestFactory, io, timer, ++id));
 	}
 }
 
@@ -117,7 +118,7 @@ int main(int argc, char *argv[]) {
 
 	io_service io;
 	deadline_timer timer(io, posix_time::millisec(100));
-	timer.async_wait(bind(createRequest, &io, &timer, 0));
+	timer.async_wait(bind(requestFactory, &io, &timer, 0));
 
 	cout << format("Attacking %1%%2% with concurrency=%3%, trunks=%4%, interval=%5%") % host % path % concurrency % trunks % interval << endl << endl;
 
