@@ -122,10 +122,10 @@ int main(int argc, char *argv[]) {
 
 	io_service io;
 	deadline_timer timer(io);
-	requestFactory(&io, &timer, 0);
 
 	cout << format("Attacking %1%%2% with concurrency=%3%, trunks=%4%, interval=%5%, expires=%6%") % host % path % concurrency % trunks % interval % expires << endl << endl;
 
+	requestFactory(&io, &timer, 0);
 	io.run();
 
 	return 0;
