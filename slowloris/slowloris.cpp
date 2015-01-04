@@ -43,11 +43,10 @@ public:
 
 	void append() {
 		cout << format("[append] %1%->%2%") % id % count << endl;
-		*stream << format("X-Block: %1%\r\n") % count;
+		*stream << format("X-Block: %1%\r\n") % count++;
 		stream->flush();
 
 		if (count < blocks) {
-			count++;
 			timer->expires_from_now(posix_time::seconds(interval));
 			timer->async_wait(bind(&Request::append, this));
 		} else {
