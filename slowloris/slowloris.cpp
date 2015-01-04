@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
 		("interval,i", po::value<int>(&interval)->default_value(5), "Interval between blocks")
 		("expires,e", po::value<int>(&expires)->default_value(5), "Expires for keep-alive connection")
 		("help,h", "Show this help info")
-		("debug,b", "Display response from server for debug");
+		("debug,g", "Display response from server for debug");
 
 	po::variables_map vm;
 
