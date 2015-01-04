@@ -11,6 +11,7 @@ namespace po = boost::program_options;
 
 int concurrency, trunks, interval, expires;
 string dest, port, location;
+bool debug;
 
 class Request {
 public:
@@ -60,6 +61,10 @@ public:
 		stream->flush();
 		cout << format("[finish] %1%") % id << endl;
 
+		if(debug){
+			cout << stream->rdbuf() << endl;
+		}
+
 		new Request(timer->get_io_service(), id + concurrency);
 		timer->expires_from_now(posix_time::seconds(expires));
 		timer->async_wait(bind(&Request::close, this));
@@ -79,11 +84,11 @@ private:
 };
 
 void requestFactory(io_service* io, deadline_timer* timer, int id) {
-	new Request(*io, id);
+	new Request(*io, id++);
 
 	if(id < concurrency) {
 		timer->expires_from_now(posix_time::millisec(100));
-		timer->async_wait(bind(requestFactory, io, timer, ++id));
+		timer->async_wait(bind(requestFactory, io, timer, id));
 	}
 }
 
@@ -97,7 +102,8 @@ int main(int argc, char *argv[]) {
 		("trunks,t", po::value<int>(&trunks)->default_value(10), "Trunks count")
 		("interval,i", po::value<int>(&interval)->default_value(5), "Interval between trunks")
 		("expires,e", po::value<int>(&expires)->default_value(5), "Expires for keep-alive connection")
-		("help,h", "Show this help info");
+		("help,h", "Show this help info")
+		("debug,b", "Display response from server for debug");
 
 	po::variables_map vm;
 
@@ -106,6 +112,11 @@ int main(int argc, char *argv[]) {
 		if (vm.count("help")) {
 			cout << desc << endl;
 			return 1;
+		}
+		if (vm.count("debug")) {
+			debug = true;
+		} else{
+			debug = false;
 		}
 		po::notify(vm);
 	} catch(po::error& e) {
@@ -117,7 +128,7 @@ int main(int argc, char *argv[]) {
 	io_service io;
 	deadline_timer timer(io);
 
-	cout << format("Attacking %1%:%2% %3% with concurrency=%4%, trunks=%5%, interval=%6%, expires=%7%") % dest % port % location % concurrency % trunks % interval % expires << endl << endl;
+	cout << format("Attacking %1%:%2% %3% with concurrency=%4%, trunks=%5%, interval=%6%, expires=%7%, debug=%8%") % dest % port % location % concurrency % trunks % interval % expires % debug << endl << endl;
 
 	requestFactory(&io, &timer, 0);
 	io.run();
