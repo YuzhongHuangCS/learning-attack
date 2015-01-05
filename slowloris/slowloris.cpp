@@ -26,7 +26,7 @@ public:
 	}
 
 	void start() {
-		cout << format("[start ] %1%") % id << endl;
+		cout << format("Start  %1%") % id << endl;
 
 		*stream << format(
 			"GET %1% HTTP/1.1\r\n"
@@ -42,7 +42,7 @@ public:
 	}
 
 	void append() {
-		cout << format("[append] %1%->%2%") % id % count << endl;
+		cout << format("Append %1%->%2%") % id % count << endl;
 		*stream << format("X-Block: %1%\r\n") % count++;
 		stream->flush();
 
@@ -58,7 +58,7 @@ public:
 	void finish() {
 		*stream << "\r\n";
 		stream->flush();
-		cout << format("[finish] %1%") % id << endl;
+		cout << format("Finish %1%") % id << endl;
 
 		if(debug){
 			cout << stream->rdbuf() << endl;
@@ -70,7 +70,7 @@ public:
 	}
 
 	void close(){
-		cout << format("[close ] %1%") % id << endl;
+		cout << format("Close  %1%") % id << endl;
 		delete this;
 	}
 
