@@ -134,10 +134,12 @@ int main(int argc, char *argv[]) {
 
 	requestFactory(&io, &timer, 0);
 
+	thread_group group;
 	for(int i = 0; i < threads; i++){
-		new thread(bind(&io_service::run, &io));
+		group.create_thread(bind(&io_service::run, &io));
 	}
 
 	io.run();
+	group.join_all();
 	return 0;
 }
