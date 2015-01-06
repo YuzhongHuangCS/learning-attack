@@ -20,6 +20,9 @@ all: $(SRCS) $(PROG)
 $(PROG): $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $@ $(INCFLAGS) $(LINKFLAGS)
 
+logo.o:
+	windres logo.rc logo.o
+
 .cpp.o:
 	$(CC) $(CFLAGS) $< -c -o $@ $(INCFLAGS)
 
