@@ -1,3 +1,6 @@
+#include <fstream>
+#include <boost/format.hpp>
+#include <boost/thread/thread.hpp>
 #include "slowloris.h"
 
 int concurrency, threads, speed, blocks, interval, expires;

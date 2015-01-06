@@ -1,11 +1,7 @@
 #ifndef _SLOWLORIS_H_
 #define _SLOWLORIS_H_
 
-#include <fstream>
 #include <boost/asio.hpp>
-#include <boost/bind.hpp>
-#include <boost/format.hpp>
-#include <boost/thread/thread.hpp>
 
 using namespace std;
 using namespace boost;

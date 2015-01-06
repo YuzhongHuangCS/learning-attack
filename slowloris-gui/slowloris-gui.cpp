@@ -1,3 +1,4 @@
+#include <boost/format.hpp>
 #include "slowloris-gui.h"
 
 Window* SlowlorisWindow::create() {
