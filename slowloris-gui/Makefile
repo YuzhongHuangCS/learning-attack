@@ -1,9 +1,19 @@
 CC			= g++
-CFLAGS		= -std=c++11 -pthread -Wall -march=native -O3 `pkg-config --cflags gtkmm-3.0`
-LINKFLAGS	= -lboost_system -lboost_thread `pkg-config --libs gtkmm-3.0`
 SRCS		= main.cpp slowloris.cpp slowloris-gui.cpp
 OBJS		= $(SRCS:.cpp=.o)
-PROG		= slowloris-gui
+
+UNAME := $(shell uname)
+
+ifeq ($(UNAME), Linux)
+	CFLAGS		= -std=c++11 -pthread -Wall -march=native -O2 `pkg-config --cflags gtkmm-3.0`
+	LINKFLAGS	= -lboost_system -lboost_thread `pkg-config --libs gtkmm-3.0`
+	PROG		= slowloris-gui
+else
+	CFLAGS 		= -std=c++11 -Wall -mwindows -march=native -O2 `pkg-config --cflags gtkmm-3.0`
+	LINKFLAGS	= -lboost_system -lboost_thread -lwsock32 -lws2_32 `pkg-config --libs gtkmm-3.0`
+	PROG		= slowloris-gui.exe
+	OBJS		+= logo.o
+endif
 
 all: $(SRCS) $(PROG)
 
