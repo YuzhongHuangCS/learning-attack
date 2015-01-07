@@ -7,11 +7,11 @@ UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)
 	CFLAGS		= -std=c++11 -pthread -Wall -march=native -O2
 	LINKFLAGS	= -lboost_system -lboost_program_options -lboost_thread
-	PROG		= slowloris-gui
+	PROG		= slowloris
 else
 	CFLAGS 		= -std=c++11 -Wall -march=native -O2
 	LINKFLAGS	= -lboost_system -lboost_program_options -lboost_thread -lwsock32 -lws2_32
-	PROG		= slowloris-gui.exe
+	PROG		= slowloris.exe
 endif
 
 all: $(SRCS) $(PROG)
