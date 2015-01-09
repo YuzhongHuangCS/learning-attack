@@ -13,7 +13,8 @@ void launchSlowloris(Options option) {
 	threads = stoi(option["threads"]);
 	speed = stoi(option["speed"]);
 	blocks = stoi(option["blocks"]);
-	interval = stoi(option["expires"]);
+	interval = stoi(option["interval"]);
+	expires = stoi(option["expires"]);
 	dest = option["dest"];
 	port = option["port"];
 	location = option["location"];
